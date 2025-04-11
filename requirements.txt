@@ -1,0 +1,16 @@
+alpha_vantage==3.0.0
+beautifulsoup4==4.13.3
+chatgptpy==1.0.8
+feedparser==6.0.11
+newsapi==0.1.1
+newsapi_python==0.2.7
+numpy==2.2.4
+pandas==2.2.3
+plotly==6.0.1
+pyChatGPT==0.4.3.3
+Requests==2.32.3
+stocknews==0.9.11
+streamlit==1.44.1
+ta==0.11.0
+textblob==0.19.0
+yfinance==0.2.55
