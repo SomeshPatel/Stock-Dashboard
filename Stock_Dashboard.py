@@ -4,40 +4,41 @@ import yfinance as yf
 import plotly.express as px
 from datetime import datetime, timedelta
 
-
+# ==================== COLOR DEFINITIONS ====================
 COLORS = {
-   
-    "bg_main": "#01031a",          
-    "bg_sidebar": "#2c3e50",       
-    "bg_card": "#2c3e50",          
-    "bg_highlight": "#000000",    
+    # Background Colors
+    "bg_main": "#01031a",          # Dark background
+    "bg_sidebar": "#2c3e50",       # Blue sidebar
+    "bg_card": "#2c3e50",          # Card background
+    "bg_highlight": "#000000",     # Highlight color
     
+    # Text Colors
+    "text_primary": "#FFFFFF",     # White for headers/titles
+    "text_secondary": "#7f8c8d",   # Gray for secondary text
+    "text_light": "#000000",       # Black for light backgrounds
+    "text_dark": "#2c3e50",        # Dark for strong contrast
     
-    "text_primary": "#FFFFFF",     
-    "text_secondary": "#7f8c8d",   
-    "text_light": "#000000",       
-    "text_dark": "#2c3e50",        
+    # Accent Colors
+    "accent_primary": "#3498db",    # Primary blue
+    "accent_secondary": "#2980b9",  # Darker blue
+    "accent_success": "#27ae60",    # Green for positive
+    "accent_danger": "#e74c3c",     # Red for negative
+    "accent_warning": "#f39c12",    # Orange for warnings
+    "accent_info": "#3498db",       # Blue for info
     
-   
-    "accent_primary": "#3498db",   
-    "accent_secondary": "#2980b9",  
-    "accent_success": "#27ae60",    
-    "accent_danger": "#e74c3c",     
-    "accent_warning": "#f39c12",    
-    "accent_info": "#3498db",       
-    
- 
-    "chart_line": "#3498db",        
-    "chart_up": "#27ae60",          
-    "chart_down": "#e74c3c",        
-    "chart_ma50": "#f39c12",      
-    "chart_ma200": "#9b59b6",      
+    # Chart Colors
+    "chart_line": "#3498db",        # Blue for line charts
+    "chart_up": "#27ae60",          # Green for positive movements
+    "chart_down": "#e74c3c",        # Red for negative movements
+    "chart_ma50": "#f39c12",        # Orange for 50MA
+    "chart_ma200": "#9b59b6",       # Purple for 200MA
 }
 
-
+# ==================== APPLICATION CODE ====================
+# Configure page
 st.set_page_config(layout="wide", page_title="StockScreener Pro")
 
-# CSS
+# Apply custom CSS with the color definitions
 st.markdown(f"""
 <style>
     /* Main container */
@@ -73,7 +74,7 @@ st.markdown(f"""
 # Title with color
 st.markdown(f"""
 <h1 style='color: {COLORS["text_primary"]};'>
-    📊 EquityX - Fundamental Analysis Dashboard
+    📊 StockScreener Pro - Fundamental Analysis Dashboard
 </h1>
 """, unsafe_allow_html=True)
 
@@ -945,7 +946,7 @@ else:
                 border-radius: 0.5rem;
                 border-left: 4px solid {COLORS['accent_info']};
                 color: {COLORS['text_primary']}">
-        <strong>Welcome to EquityX 🔍</strong>
+        <strong>Welcome to StockScreener Pro🔍</strong>
         <br><br>
         👈 Please enter a stock symbol or company name in the sidebar to begin analysis.
         <br>
