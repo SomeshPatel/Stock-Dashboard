@@ -4,36 +4,36 @@ import yfinance as yf
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# ==================== CONSTANTS & CONFIGURATION ====================
+
 COLORS = {
-    # Background Colors
-    "bg_main": "#01031a",          # Dark background
-    "bg_sidebar": "#2c3e50",       # Blue sidebar
-    "bg_card": "#2c3e50",          # Card background
+    
+    "bg_main": "#01031a",         
+    "bg_sidebar": "#2c3e50",       
+    "bg_card": "#2c3e50",          
     
     # Text Colors
-    "text_primary": "#FFFFFF",     # White for headers/titles
-    "text_secondary": "#7f8c8d",   # Gray for secondary text
+    "text_primary": "#FFFFFF",     
+    "text_secondary": "#7f8c8d",   
     
-    # Accent Colors
-    "accent_primary": "#3498db",    # Primary blue
-    "accent_success": "#27ae60",    # Green for positive
-    "accent_danger": "#e74c3c",     # Red for negative
     
-    # Chart Colors
-    "chart_line": "#3498db",        # Blue for line charts
-    "chart_ma50": "#f39c12",        # Orange for 50MA
-    "chart_ma200": "#9b59b6",       # Purple for 200MA
+    "accent_primary": "#3498db",    
+    "accent_success": "#27ae60",    
+    "accent_danger": "#e74c3c",    
+    
+   
+    "chart_line": "#3498db",        
+    "chart_ma50": "#f39c12",       
+    "chart_ma200": "#9b59b6",       
 }
 
-# Initialize Streamlit page config
+
 st.set_page_config(
     layout="wide", 
     page_title="EquityX - Stock Analysis Dashboard",
     page_icon="📈"
 )
 
-# Apply custom CSS
+#  CSS
 st.markdown(f"""
 <style>
     .stApp {{
@@ -57,10 +57,10 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== UTILITY FUNCTIONS ====================
+
 @st.cache_data
 def get_indian_stocks():
-    """Fetch a predefined list of Indian stocks with their symbols and names"""
+    
     return {
         "RELIANCE.NS": "Reliance Industries",
         "TATASTEEL.NS": "Tata Steel",
@@ -622,7 +622,7 @@ def fetch_stock_data(ticker):
         st.error(f"Failed to fetch data for {ticker}: {str(e)}")
         return None
 
-# ==================== SIDEBAR - STOCK SELECTION ====================
+# SIDEBAR - STOCK SELECTION 
 with st.sidebar:
     st.markdown(f"""
     <h2 style='color: {COLORS["text_primary"]};'>
@@ -647,7 +647,7 @@ with st.sidebar:
         else:
             st.warning("No matching stocks found. Try: RELIANCE.NS, TATASTEEL.NS")
 
-# ==================== MAIN DASHBOARD ====================
+#  MAIN DASHBOARD 
 st.markdown(f"""
 <h1 style='color: {COLORS["text_primary"]};'>
     📊 EquityX - Stock Analysis Dashboard
@@ -686,14 +686,14 @@ if stock_data is None:
 info = stock_data['info']
 hist = stock_data['hist']
 
-# ==================== TECHNICAL ANALYSIS SECTION ====================
+# TECHNICAL ANALYSIS SECTION 
 st.markdown(f"""
 <h2 style='color: {COLORS["text_primary"]};'>
     Technical Analysis
 </h2>
 """, unsafe_allow_html=True)
 
-# Date range selector
+# Date range 
 col1, col2 = st.columns(2)
 with col1:
     start_date = st.date_input("From", value=datetime.now() - timedelta(days=365))
@@ -745,7 +745,7 @@ if not range_hist.empty:
             crossover = "Bullish" if range_hist['50MA'].iloc[-1] > range_hist['200MA'].iloc[-1] else "Bearish"
             st.metric("MA Crossover", crossover)
 
-# ==================== ANALYSIS TABS ====================
+# ANALYSIS TABS 
 tab1, tab2, tab3 = st.tabs(["📈 Overview", "💹 Financials", "📊 Valuation"])
 
 with tab1:  # Company Overview
@@ -826,7 +826,7 @@ with tab3:  # Valuation
     }
     st.dataframe(pd.DataFrame(profitability_data), hide_index=True)
 
-# ==================== FOOTER ====================
+# FOOTER 
 st.divider()
 st.markdown(f"""
 <div style="color: {COLORS['text_secondary']}; font-size: 0.9em;">
