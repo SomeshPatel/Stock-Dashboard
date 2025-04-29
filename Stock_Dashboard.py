@@ -4,86 +4,70 @@ import yfinance as yf
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# ==================== COLOR DEFINITIONS ====================
+# ==================== CONSTANTS & CONFIGURATION ====================
 COLORS = {
     # Background Colors
     "bg_main": "#01031a",          # Dark background
     "bg_sidebar": "#2c3e50",       # Blue sidebar
     "bg_card": "#2c3e50",          # Card background
-    "bg_highlight": "#000000",     # Highlight color
     
     # Text Colors
     "text_primary": "#FFFFFF",     # White for headers/titles
     "text_secondary": "#7f8c8d",   # Gray for secondary text
-    "text_light": "#000000",       # Black for light backgrounds
-    "text_dark": "#2c3e50",        # Dark for strong contrast
     
     # Accent Colors
     "accent_primary": "#3498db",    # Primary blue
-    "accent_secondary": "#2980b9",  # Darker blue
     "accent_success": "#27ae60",    # Green for positive
     "accent_danger": "#e74c3c",     # Red for negative
-    "accent_warning": "#f39c12",    # Orange for warnings
-    "accent_info": "#3498db",       # Blue for info
     
     # Chart Colors
     "chart_line": "#3498db",        # Blue for line charts
-    "chart_up": "#27ae60",          # Green for positive movements
-    "chart_down": "#e74c3c",        # Red for negative movements
     "chart_ma50": "#f39c12",        # Orange for 50MA
     "chart_ma200": "#9b59b6",       # Purple for 200MA
 }
 
-# ==================== APPLICATION CODE ====================
-# Configure page
-st.set_page_config(layout="wide", page_title="StockScreener Pro")
+# Initialize Streamlit page config
+st.set_page_config(
+    layout="wide", 
+    page_title="EquityX - Stock Analysis Dashboard",
+    page_icon="📈"
+)
 
-# Apply custom CSS with the color definitions
+# Apply custom CSS
 st.markdown(f"""
 <style>
-    /* Main container */
     .stApp {{
         background-color: {COLORS['bg_main']};
     }}
-    
-    /* Sidebar */
     [data-testid="stSidebar"] {{
         background-color: {COLORS['bg_sidebar']} !important;
     }}
-    
-    /* Text colors */
     h1, h2, h3, h4, h5, h6 {{
         color: {COLORS['text_primary']};
     }}
-    
-    /* Metrics */
     .stMetric {{
         background-color: {COLORS['bg_card']};
         border-radius: 8px;
         padding: 10px;
         border-left: 3px solid {COLORS['accent_primary']};
     }}
-    
-    /* Dataframes */
     .stDataFrame {{
-        border: 1px solid {COLORS['bg_highlight']};
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# Title with color
-st.markdown(f"""
-<h1 style='color: {COLORS["text_primary"]};'>
-    📊 StockScreener Pro - Fundamental Analysis Dashboard
-</h1>
-""", unsafe_allow_html=True)
-
-# Function to fetch available Indian stocks from Yahoo Finance
+# ==================== UTILITY FUNCTIONS ====================
 @st.cache_data
 def get_indian_stocks():
-    try:
-        indian_stocks = {
-            "RELIANCE.NS": "Reliance Industries",
+    """Fetch a predefined list of Indian stocks with their symbols and names"""
+    return {
+        "RELIANCE.NS": "Reliance Industries",
+        "TATASTEEL.NS": "Tata Steel",
+        "HDFCBANK.NS": "HDFC Bank",
+        "INFY.NS": "Infosys",
+        "TCS.NS": "Tata Consultancy",
+        "RELIANCE.NS": "Reliance Industries",
             "TATASTEEL.NS": "Tata Steel",
             "HDFCBANK.NS": "HDFC Bank",
             "INFY.NS": "Infosys",
@@ -604,17 +588,41 @@ def get_indian_stocks():
             "SONACOMS.NS": "Sona BLW Precision Forgings Limited",
             "JBCHEPHARM.NS": "JB Chemicals & Pharmaceuticals Limited"
 
-        }
-        return indian_stocks
-    except Exception as e:
-        st.error(f"Error fetching stock list: {str(e)}")
-        return {}
+    }
 
-# Function to convert numbers to Crores
 def to_crores(x):
+    """Convert numbers to Crores (Indian numbering system)"""
     return x / 10000000
 
-# Sidebar - Stock Search
+def fetch_stock_data(ticker):
+    """Fetch comprehensive stock data from Yahoo Finance"""
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info or {}
+        hist = stock.history(period="max")
+        
+        if hist.empty:
+            raise ValueError("No historical data available")
+            
+        # Remove timezone if present
+        if hist.index.tz is not None:
+            hist.index = hist.index.tz_localize(None)
+            
+        return {
+            'info': info,
+            'hist': hist,
+            'financials': stock.financials,
+            'balance_sheet': stock.balance_sheet,
+            'cashflow': stock.cashflow,
+            'quarterly_financials': stock.quarterly_financials,
+            'quarterly_balance_sheet': stock.quarterly_balance_sheet,
+            'quarterly_cashflow': stock.quarterly_cashflow
+        }
+    except Exception as e:
+        st.error(f"Failed to fetch data for {ticker}: {str(e)}")
+        return None
+
+# ==================== SIDEBAR - STOCK SELECTION ====================
 with st.sidebar:
     st.markdown(f"""
     <h2 style='color: {COLORS["text_primary"]};'>
@@ -622,16 +630,13 @@ with st.sidebar:
     </h2>
     """, unsafe_allow_html=True)
     
-    # Yfinance code for stock data
     STOCK_DB = get_indian_stocks()
-    
-    # search of stock
     search_term = st.text_input(
         "Enter stock symbol or company name",
-        value="",
         placeholder="RELIANCE.NS or Reliance"
     ).upper()
     
+    ticker = None
     if search_term:
         matches = [f"{symbol} - {name}" for symbol, name in STOCK_DB.items() 
                   if search_term in symbol or search_term in name.upper()]
@@ -641,320 +646,190 @@ with st.sidebar:
             ticker = selected.split(" - ")[0]
         else:
             st.warning("No matching stocks found. Try: RELIANCE.NS, TATASTEEL.NS")
-            ticker = None
-    else:
-        ticker = None
 
-# Main Dashboard - Only show if a stock is selected
-if ticker:
-    # Fetch stock data from Yahoo Finance with MAXIMUM available data
-    @st.cache_data
-    def get_stock_data(ticker):
-        try:
-            stock = yf.Ticker(ticker)
-            
-            # Get all available info
-            info = stock.info
-            
-            # Get MAXIMUM available historical data
-            hist = stock.history(period="max")
-            
-            # Remove timezone from index if present
-            if hist.index.tz is not None:
-                hist.index = hist.index.tz_localize(None)
-                
-            # Get additional fundamental data
-            financials = stock.financials
-            balance_sheet = stock.balance_sheet
-            cashflow = stock.cashflow
-            quarterly_financials = stock.quarterly_financials
-            quarterly_balance_sheet = stock.quarterly_balance_sheet
-            quarterly_cashflow = stock.quarterly_cashflow
-            
-            return {
-                'info': info,
-                'hist': hist,
-                'financials': financials,
-                'balance_sheet': balance_sheet,
-                'cashflow': cashflow,
-                'quarterly_financials': quarterly_financials,
-                'quarterly_balance_sheet': quarterly_balance_sheet,
-                'quarterly_cashflow': quarterly_cashflow
-            }
-        except Exception as e:
-            st.error(f"Error fetching data: {str(e)}")
-            return None
+# ==================== MAIN DASHBOARD ====================
+st.markdown(f"""
+<h1 style='color: {COLORS["text_primary"]};'>
+    📊 EquityX - Stock Analysis Dashboard
+</h1>
+""", unsafe_allow_html=True)
 
-    stock_data = get_stock_data(ticker)
-
-    if stock_data is None:
-        st.error("Failed to fetch data. Please try another stock.")
-        st.stop()
-
-    info = stock_data['info']
-    hist = stock_data['hist']
-    financials = stock_data['financials']
-    balance_sheet = stock_data['balance_sheet']
-    cashflow = stock_data['cashflow']
-    quarterly_financials = stock_data['quarterly_financials']
-    quarterly_balance_sheet = stock_data['quarterly_balance_sheet']
-    quarterly_cashflow = stock_data['quarterly_cashflow']
-
-    # Technical Analysis Section
+if not ticker:
+    # Welcome message when no stock is selected
     st.markdown(f"""
-    <h2 style='color: {COLORS["text_primary"]};'>
-        Technical Analysis
-    </h2>
-    """, unsafe_allow_html=True)
-    
-    # Date range selector
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("From", value=datetime.now() - timedelta(days=365))
-    with col2:
-        end_date = st.date_input("To", value=datetime.now())
-    
-    # Current price display
-    current_price = info.get('currentPrice', info.get('regularMarketPrice', 'N/A'))
-    st.metric("Current Price", f"₹{current_price:,.2f}" if isinstance(current_price, (int, float)) else current_price)
-    
-    # Convert dates and filter data
-    start_date = datetime.combine(start_date, datetime.min.time())
-    end_date = datetime.combine(end_date, datetime.min.time())
-    range_hist = hist[(hist.index >= start_date) & (hist.index <= end_date)]
-    
-    if not range_hist.empty:
-        # MA
-        range_hist['50MA'] = range_hist['Close'].rolling(50).mean()
-        range_hist['200MA'] = range_hist['Close'].rolling(200).mean()
-        
-        # Create interactive chart with custom colors
-        fig = px.line(range_hist, x=range_hist.index, y=['Close', '50MA', '200MA'],
-                     title=f"Price Movement ({start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')})",
-                     labels={'value': 'Price (₹)'},
-                     color_discrete_map={
-                         'Close': COLORS['chart_line'],
-                         '50MA': COLORS['chart_ma50'],
-                         '200MA': COLORS['chart_ma200']
-                     })
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Technical indicators
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("50-Day MA", f"₹{range_hist['50MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['50MA'].iloc[-1]) else "N/A")
-            st.metric("200-Day MA", f"₹{range_hist['200MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['200MA'].iloc[-1]) else "N/A")
-        with col2:
-            if not pd.isna(range_hist['50MA'].iloc[-1]) and not pd.isna(range_hist['200MA'].iloc[-1]):
-                crossover = "Bullish" if range_hist['50MA'].iloc[-1] > range_hist['200MA'].iloc[-1] else "Bearish"
-                st.metric("MA Crossover", crossover)
-
-    # Tabs below Technical Analysis
-    tab1, tab2, tab3 = st.tabs(["📈 Overview", "💹 Financials", "📊 Valuation"])
-
-    # Company Overview Tab
-    with tab1:
-        st.markdown(f"""
-        <h2 style='color: {COLORS["text_primary"]};'>
-            {info.get('longName', STOCK_DB.get(ticker, ticker))} ({ticker})
-        </h2>
-        """, unsafe_allow_html=True)
-        
-        # Current price and key metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Market Cap", f"₹{info.get('marketCap', 0)/1e7:,.0f} Cr" if info.get('marketCap') else "N/A")
-            st.metric("Sector", info.get('sector', 'N/A'))
-            st.metric("Industry", info.get('industry', 'N/A'))
-        with col2:
-            st.metric("52W High", f"₹{info.get('fiftyTwoWeekHigh', 'N/A'):,.2f}")
-            st.metric("52W Low", f"₹{info.get('fiftyTwoWeekLow', 'N/A'):,.2f}")
-        
-        with col3:
-            st.metric("Volume", f"{info.get('volume', 'N/A'):,}" if isinstance(info.get('volume'), int) else info.get('volume', 'N/A'))
-            st.metric("Avg. Volume", f"{info.get('averageVolume', 'N/A'):,}" if isinstance(info.get('averageVolume'), int) else info.get('averageVolume', 'N/A'))
-
-        # Business summary
-        st.subheader("Business Summary")
-        st.write(info.get('longBusinessSummary', 'No business description available from Yahoo Finance.'))
-
-    # Financials Tab
-    with tab2:
-        st.header("Financial Analysis (All values in ₹ Crores)")
-        
-        # Period selection
-        period = st.radio("Select Period:", ["Annual", "Quarterly"], horizontal=True, key="financial_period")
-        
-        # Get the appropriate financial data based on period
-        if period == "Annual":
-            income_df = financials
-            cashflow_df = cashflow
-        else:
-            income_df = quarterly_financials
-            cashflow_df = quarterly_cashflow
-        
-        # Income Statement Section
-        st.subheader("Income Statement")
-        if not income_df.empty:
-            income_cr = income_df.apply(to_crores)
-            
-            income_items = {
-                'Total Revenue': 'Sales',
-                'Gross Profit': 'Gross Profit',
-                'Operating Expenses': 'Op Expenses',
-                'Operating Income': 'Operating Profit',
-                'Other Income': 'Other Income',
-                'Interest Expense': 'Interest',
-                'Income Before Tax': 'PBT',
-                'Income Tax Expense': 'Tax',
-                'Net Income': 'Net Profit'
-            }
-            
-            filtered_income = income_cr[income_cr.index.isin(income_items.keys())]
-            filtered_income = filtered_income.rename(index=income_items)
-            
-            if 'Sales' in filtered_income.index and 'COGS' in filtered_income.index:
-                gross_margin = ((filtered_income.loc['Sales'] - filtered_income.loc['COGS']) / filtered_income.loc['Sales']) * 100
-                gross_margin_df = pd.DataFrame(gross_margin).T
-                gross_margin_df.index = ['Gross Margin %']
-                filtered_income = pd.concat([filtered_income, gross_margin_df])
-            
-            if 'Operating Profit' in filtered_income.index and 'Sales' in filtered_income.index:
-                op_margin = (filtered_income.loc['Operating Profit'] / filtered_income.loc['Sales']) * 100
-                op_margin_df = pd.DataFrame(op_margin).T
-                op_margin_df.index = ['Op Margin %']
-                filtered_income = pd.concat([filtered_income, op_margin_df])
-            
-            # Apply color formatting
-            st.dataframe(
-                filtered_income.style.format("{:,.2f} Cr")
-                .applymap(lambda x: f"color: {COLORS['accent_success']}" if isinstance(x, (int, float)) and x > 0 
-                          else f"color: {COLORS['accent_danger']}" if isinstance(x, (int, float)) and x < 0 
-                          else "")
-            )
-        
-        # Cash Flow Statement Section
-        st.subheader("Cash Flow Statement")
-        if not cashflow_df.empty:
-            cashflow_cr = cashflow_df.apply(to_crores)
-            
-            cashflow_items = {
-                'Operating Cash Flow': 'Operating Activities',
-                'Investing Cash Flow': 'Investing Activities',
-                'Financing Cash Flow': 'Financing Activities',
-                'Free Cash Flow': 'Free Cash Flow',
-                'Capital Expenditure': 'Capex',
-                'Net Cash Flow': 'Net Cash Flow'
-            }
-            
-            filtered_cashflow = cashflow_cr[cashflow_cr.index.isin(cashflow_items.keys())]
-            filtered_cashflow = filtered_cashflow.rename(index=cashflow_items)
-            
-            # Apply color formatting
-            st.dataframe(
-                filtered_cashflow.style.format("{:,.2f} Cr")
-                .applymap(lambda x: f"color: {COLORS['accent_success']}" if isinstance(x, (int, float)) and x > 0 
-                          else f"color: {COLORS['accent_danger']}" if isinstance(x, (int, float)) and x < 0 
-                          else "")
-            )
-
-    # Valuation Tab
-    with tab3:
-        st.header("Valuation Metrics")
-        
-        # Valuation Ratios
-        st.subheader("Valuation Ratios")
-        valuation_data = {
-            "Metric": [
-                "Trailing P/E", "Forward P/E", "P/B Ratio", "P/S Ratio",
-                "EV/EBITDA", "EV/Revenue", "Price/Cash Flow"
-            ],
-            "Value": [
-                info.get('trailingPE', 'N/A'),
-                info.get('forwardPE', 'N/A'),
-                info.get('priceToBook', 'N/A'),
-                info.get('priceToSalesTrailing12Months', 'N/A'),
-                info.get('enterpriseToEbitda', 'N/A'),
-                info.get('enterpriseToRevenue', 'N/A'),
-                info.get('priceToCashflow', 'N/A')
-            ]
-        }
-        valuation_df = pd.DataFrame(valuation_data)
-        
-        # Apply color formatting
-        def color_valuation(val):
-            if isinstance(val, (int, float)):
-                if val < 15: return f"color: {COLORS['accent_success']}"
-                elif val > 25: return f"color: {COLORS['accent_danger']}"
-            return ""
-        
-        st.dataframe(
-            valuation_df.style.applymap(color_valuation, subset=['Value']),
-            hide_index=True, 
-            use_container_width=True
-        )
-        
-        # Profitability Ratios
-        st.subheader("Profitability Ratios")
-        profitability_data = {
-            "Metric": [
-                "Return on Equity", "Return on Assets", "Operating Margin",
-                "Gross Margin", "Profit Margin", "Dividend Yield"
-            ],
-            "Value": [
-                f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get('returnOnEquity') else "N/A",
-                f"{info.get('returnOnAssets', 0)*100:.2f}%" if info.get('returnOnAssets') else "N/A",
-                f"{info.get('operatingMargins', 0)*100:.2f}%" if info.get('operatingMargins') else "N/A",
-                f"{info.get('grossMargins', 0)*100:.2f}%" if info.get('grossMargins') else "N/A",
-                f"{info.get('profitMargins', 0)*100:.2f}%" if info.get('profitMargins') else "N/A",
-                f"{info.get('dividendYield', 0)*100:.2f}%" if info.get('dividendYield') else "N/A"
-            ]
-        }
-        profitability_df = pd.DataFrame(profitability_data)
-        
-        # Apply color formatting
-        def color_profitability(val):
-            if isinstance(val, str) and '%' in val:
-                value = float(val.replace('%', ''))
-                if value > 15: return f"color: {COLORS['accent_success']}"
-                elif value < 5: return f"color: {COLORS['accent_danger']}"
-            return ""
-        
-        st.dataframe(
-            profitability_df.style.applymap(color_profitability, subset=['Value']),
-            hide_index=True,
-            use_container_width=True
-        )
-
-    # NEWS TAB
-    
-    # CHAT GPT 
-    
-    # Footer
-   # st.divider()
-    #st.markdown(f"""
-   # <div style="color: {COLORS['text_secondary']}">
-   # **Data Source**: Yahoo Finance | **Disclaimer**: This is a demo application. 
-   # Data may be delayed. Not investment advice. Always conduct your own research before investing.
-   # </div>
-   # """, unsafe_allow_html=True)
-else:
-    # Initial state before any stock is selected
-    st.markdown(f"""
-    <div style="background-color: {COLORS['bg_highlight']}; 
-                padding: 1rem; 
+    <div style="background-color: {COLORS['bg_card']}; 
+                padding: 1.5rem; 
                 border-radius: 0.5rem;
-                border-left: 4px solid {COLORS['accent_info']};
+                border-left: 4px solid {COLORS['accent_primary']};
                 color: {COLORS['text_primary']}">
-        <strong>Welcome to StockScreener Pro🔍</strong>
+        <strong>Welcome to EquityX 🔍</strong>
         <br><br>
-        👈 Please enter a stock symbol or company name in the sidebar to begin analysis.
-        <br>
-        Example symbols:
+        👈 Please select a stock from the sidebar to begin analysis.
+        <br><br>
+        <strong>Popular Indian Stocks:</strong>
         <ul>
             <li>RELIANCE.NS (Reliance Industries)</li>
-            <li>TATASTEEL.NS (Tata Steel)</li>
             <li>HDFCBANK.NS (HDFC Bank)</li>
+            <li>TCS.NS (Tata Consultancy Services)</li>
+            <li>INFY.NS (Infosys)</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
+    st.stop()
+
+# Fetch and validate stock data
+stock_data = fetch_stock_data(ticker)
+if stock_data is None:
+    st.error("Failed to load stock data. Please try another stock or check your connection.")
+    st.stop()
+
+info = stock_data['info']
+hist = stock_data['hist']
+
+# ==================== TECHNICAL ANALYSIS SECTION ====================
+st.markdown(f"""
+<h2 style='color: {COLORS["text_primary"]};'>
+    Technical Analysis
+</h2>
+""", unsafe_allow_html=True)
+
+# Date range selector
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("From", value=datetime.now() - timedelta(days=365))
+with col2:
+    end_date = st.date_input("To", value=datetime.now())
+
+# Current price display
+current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+st.metric(
+    "Current Price", 
+    f"₹{current_price:,.2f}" if current_price else "N/A",
+    delta=f"{info.get('regularMarketChangePercent', 0):.2f}%" if 'regularMarketChangePercent' in info else None
+)
+
+# Filter historical data by date range
+start_dt = datetime.combine(start_date, datetime.min.time())
+end_dt = datetime.combine(end_date, datetime.min.time())
+range_hist = hist[(hist.index >= start_dt) & (hist.index <= end_dt)]
+
+if not range_hist.empty:
+    # Calculate moving averages
+    range_hist['50MA'] = range_hist['Close'].rolling(50).mean()
+    range_hist['200MA'] = range_hist['Close'].rolling(200).mean()
+    
+    # Create interactive price chart
+    fig = px.line(
+        range_hist, 
+        x=range_hist.index, 
+        y=['Close', '50MA', '200MA'],
+        title=f"{info.get('shortName', ticker)} Price Movement",
+        labels={'value': 'Price (₹)', 'variable': 'Metric'},
+        color_discrete_map={
+            'Close': COLORS['chart_line'],
+            '50MA': COLORS['chart_ma50'],
+            '200MA': COLORS['chart_ma200']
+        }
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Technical indicators summary
+    st.subheader("Key Technical Indicators")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("50-Day MA", f"₹{range_hist['50MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['50MA'].iloc[-1]) else "N/A")
+    with col2:
+        st.metric("200-Day MA", f"₹{range_hist['200MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['200MA'].iloc[-1]) else "N/A")
+    with col3:
+        if not pd.isna(range_hist['50MA'].iloc[-1]) and not pd.isna(range_hist['200MA'].iloc[-1]):
+            crossover = "Bullish" if range_hist['50MA'].iloc[-1] > range_hist['200MA'].iloc[-1] else "Bearish"
+            st.metric("MA Crossover", crossover)
+
+# ==================== ANALYSIS TABS ====================
+tab1, tab2, tab3 = st.tabs(["📈 Overview", "💹 Financials", "📊 Valuation"])
+
+with tab1:  # Company Overview
+    st.markdown(f"""
+    <h2 style='color: {COLORS["text_primary"]};'>
+        {info.get('longName', STOCK_DB.get(ticker, ticker))} ({ticker})
+    </h2>
+    """, unsafe_allow_html=True)
+    
+    # Key metrics in columns
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Market Cap", f"₹{info.get('marketCap', 0)/1e7:,.0f} Cr" if info.get('marketCap') else "N/A")
+        st.metric("Sector", info.get('sector', 'N/A'))
+    with col2:
+        st.metric("52W High", f"₹{info.get('fiftyTwoWeekHigh', 'N/A'):,.2f}")
+        st.metric("52W Low", f"₹{info.get('fiftyTwoWeekLow', 'N/A'):,.2f}")
+    with col3:
+        st.metric("Volume", f"{info.get('volume', 'N/A'):,}" if isinstance(info.get('volume'), int) else "N/A")
+        st.metric("Avg. Volume", f"{info.get('averageVolume', 'N/A'):,}" if isinstance(info.get('averageVolume'), int) else "N/A")
+    
+    # Business summary
+    st.subheader("Business Summary")
+    st.write(info.get('longBusinessSummary', 'No business description available.'))
+
+with tab2:  # Financials
+    st.header("Financial Analysis (₹ Crores)")
+    
+    period = st.radio("Period:", ["Annual", "Quarterly"], horizontal=True)
+    financials = stock_data['quarterly_financials'] if period == "Quarterly" else stock_data['financials']
+    cashflow = stock_data['quarterly_cashflow'] if period == "Quarterly" else stock_data['cashflow']
+    
+    if not financials.empty:
+        st.subheader("Income Statement")
+        financials_cr = financials.apply(to_crores)
+        st.dataframe(
+            financials_cr.style.format("{:,.2f} Cr")
+            .applymap(lambda x: f"color: {COLORS['accent_success']}" if isinstance(x, (int, float)) and x > 0 
+                      else f"color: {COLORS['accent_danger']}" if isinstance(x, (int, float)) and x < 0 
+                      else "")
+        )
+    
+    if not cashflow.empty:
+        st.subheader("Cash Flow Statement")
+        cashflow_cr = cashflow.apply(to_crores)
+        st.dataframe(
+            cashflow_cr.style.format("{:,.2f} Cr")
+            .applymap(lambda x: f"color: {COLORS['accent_success']}" if isinstance(x, (int, float)) and x > 0 
+                      else f"color: {COLORS['accent_danger']}" if isinstance(x, (int, float)) and x < 0 
+                      else "")
+        )
+
+with tab3:  # Valuation
+    st.header("Valuation Metrics")
+    
+    # Valuation Ratios
+    valuation_data = {
+        "Metric": ["P/E", "P/B", "P/S", "EV/EBITDA", "Dividend Yield"],
+        "Value": [
+            info.get('trailingPE', 'N/A'),
+            info.get('priceToBook', 'N/A'),
+            info.get('priceToSalesTrailing12Months', 'N/A'),
+            info.get('enterpriseToEbitda', 'N/A'),
+            f"{info.get('dividendYield', 0)*100:.2f}%" if info.get('dividendYield') else "N/A"
+        ]
+    }
+    st.dataframe(pd.DataFrame(valuation_data), hide_index=True)
+    
+    # Profitability Ratios
+    profitability_data = {
+        "Metric": ["ROE", "ROA", "Operating Margin", "Gross Margin"],
+        "Value": [
+            f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get('returnOnEquity') else "N/A",
+            f"{info.get('returnOnAssets', 0)*100:.2f}%" if info.get('returnOnAssets') else "N/A",
+            f"{info.get('operatingMargins', 0)*100:.2f}%" if info.get('operatingMargins') else "N/A",
+            f"{info.get('grossMargins', 0)*100:.2f}%" if info.get('grossMargins') else "N/A"
+        ]
+    }
+    st.dataframe(pd.DataFrame(profitability_data), hide_index=True)
+
+# ==================== FOOTER ====================
+st.divider()
+st.markdown(f"""
+<div style="color: {COLORS['text_secondary']}; font-size: 0.9em;">
+    <strong>Data Source:</strong> Yahoo Finance 
+</div>
+""", unsafe_allow_html=True)
