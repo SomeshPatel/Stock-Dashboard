@@ -715,19 +715,19 @@ range_hist = hist[(hist.index >= start_dt) & (hist.index <= end_dt)]
 
 if not range_hist.empty:
     # Calculate moving averages
-    range_hist['80MA'] = range_hist['Close'].rolling(80).mean()
+    range_hist['50MA'] = range_hist['Close'].rolling(50).mean()
     range_hist['200MA'] = range_hist['Close'].rolling(200).mean()
     
     # Create interactive price chart
     fig = px.line(
         range_hist, 
         x=range_hist.index, 
-        y=['Close', '80MA', '200MA'],
+        y=['Close', '50MA', '200MA'],
         title=f"{info.get('shortName', ticker)} Price Movement",
         labels={'value': 'Price (₹)', 'variable': 'Metric'},
         color_discrete_map={
             'Close': COLORS['chart_line'],
-            '80MA': COLORS['chart_ma80'],
+            '50MA': COLORS['chart_ma50'],
             '200MA': COLORS['chart_ma200']
         }
     )
@@ -737,12 +737,12 @@ if not range_hist.empty:
     st.subheader("Key Technical Indicators")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("80-Day MA", f"₹{range_hist['80MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['80MA'].iloc[-1]) else "N/A")
+        st.metric("50-Day MA", f"₹{range_hist['50MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['50MA'].iloc[-1]) else "N/A")
     with col2:
         st.metric("200-Day MA", f"₹{range_hist['200MA'].iloc[-1]:,.2f}" if not pd.isna(range_hist['200MA'].iloc[-1]) else "N/A")
     with col3:
-        if not pd.isna(range_hist['80MA'].iloc[-1]) and not pd.isna(range_hist['200MA'].iloc[-1]):
-            crossover = "Bullish" if range_hist['80MA'].iloc[-1] > range_hist['200MA'].iloc[-1] else "Bearish"
+        if not pd.isna(range_hist['50MA'].iloc[-1]) and not pd.isna(range_hist['200MA'].iloc[-1]):
+            crossover = "Bullish" if range_hist['50MA'].iloc[-1] > range_hist['200MA'].iloc[-1] else "Bearish"
             st.metric("MA Crossover", crossover)
 
 # ANALYSIS TABS 
